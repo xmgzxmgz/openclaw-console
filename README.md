@@ -69,3 +69,29 @@ openclaw-console/
 ## 许可
 
 MIT
+
+## 多平台支持
+
+### macOS（原生 App）
+```bash
+# 下载 OpenClaw-Console-v1.0-mac.zip，解压后双击 .app
+```
+
+### Windows
+```bash
+# 下载 OpenClaw-Console-v1.0-win.zip
+# 确保已安装 Node.js，双击 start.bat
+```
+
+### Linux
+```bash
+# 下载 OpenClaw-Console-v1.0-linux.zip
+chmod +x start-linux.sh
+./start-linux.sh
+```
+
+### 手机（PWA）
+1. 在电脑上启动服务
+2. 手机浏览器访问 `http://电脑IP:3456`
+3. Safari: 分享 → 添加到主屏幕
+4. Chrome: 菜单 → 安装应用
