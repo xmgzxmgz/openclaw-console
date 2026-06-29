@@ -2,268 +2,199 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>OpenClaw Console</title>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#007aff">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <link rel="apple-touch-icon" href="icon.png">
 </head>
 <body>
-  <header>
-    <div class="logo">
-      <span class="logo-icon">🦞</span>
-      <span class="logo-text">OpenClaw <span class="accent">Console</span></span>
+  <!-- 侧边栏 -->
+  <aside id="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-icon">🦞</span>
+      <span class="brand-text">OpenClaw</span>
     </div>
-    <div class="header-right">
-      <div class="risk-pill" id="risk-pill" title="风险检测">
-        <span id="risk-icon">✅</span>
-        <span id="risk-text">安全</span>
+    <nav class="sidebar-nav">
+      <a class="nav-item active" data-page="dashboard"><span class="nav-icon">📊</span>总览</a>
+      <a class="nav-item" data-page="sessions"><span class="nav-icon">💬</span>会话</a>
+      <a class="nav-item" data-page="compare"><span class="nav-icon">⚖️</span>对比</a>
+      <a class="nav-item" data-page="templates"><span class="nav-icon">📋</span>模板</a>
+      <a class="nav-item" data-page="chat"><span class="nav-icon">🤖</span>对话</a>
+    </nav>
+    <div class="sidebar-footer">
+      <a class="nav-item" data-page="settings"><span class="nav-icon">⚙️</span>设置</a>
+      <div class="sidebar-status">
+        <span class="dot ok" id="status-dot"></span>
+        <span id="status-text">连接中</span>
       </div>
-      <div class="header-model" id="header-model" title="点击切换模型">
-        <span id="current-model">-</span>
-      </div>
-      <div class="status-pill">
-        <span class="status-dot online" id="status-dot"></span>
-        <span id="status-text">连接中...</span>
-      </div>
-      <button class="header-btn secondary" onclick="loadData()" title="刷新数据">🔄</button>
-      <button class="header-btn secondary" id="btn-restart" title="重启网关">⚡</button>
-      <button class="header-btn secondary" id="btn-search" title="搜索对话">🔍</button>
-      <button class="header-btn secondary" id="btn-settings" title="设置">⚙️</button>
     </div>
-  </header>
+  </aside>
 
-  <main>
-    <!-- 统计 -->
-    <div class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon">💬</div>
-        <div class="stat-value" id="stat-sessions">-</div>
-        <div class="stat-label">总会话数</div>
-        <div class="stat-sub" id="stat-sessions-sub">-</div>
+  <!-- 主内容区 -->
+  <main id="main">
+    <!-- 顶部栏 -->
+    <header id="topbar">
+      <div class="topbar-left">
+        <button class="topbar-btn" id="menu-toggle" title="菜单">☰</button>
+        <h1 class="topbar-title" id="page-title">总览</h1>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon">📨</div>
-        <div class="stat-value" id="stat-messages">-</div>
-        <div class="stat-label">总消息数</div>
-        <div class="stat-sub" id="stat-messages-sub">-</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">📊</div>
-        <div class="stat-value" id="stat-tokens">-</div>
-        <div class="stat-label">总 Token</div>
-        <div class="stat-sub" id="stat-tokens-sub">-</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">🔧</div>
-        <div class="stat-value" id="stat-tools">-</div>
-        <div class="stat-label">工具调用</div>
-        <div class="stat-sub" id="stat-tools-sub">-</div>
-      </div>
-    </div>
-
-    <!-- 渠道状态 + Token 趋势 + 模型分布 紧凑布局 -->
-    <div class="stats-row">
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">📡 渠道状态</span>
+      <div class="topbar-right">
+        <div class="topbar-search" id="search-trigger">
+          <span>🔍</span><span class="search-hint">搜索...</span>
         </div>
-        <div id="channel-status"></div>
+        <div class="risk-pill safe" id="risk-pill"><span id="risk-icon">✅</span><span id="risk-text">安全</span></div>
+        <button class="topbar-btn" onclick="loadData()" title="刷新">🔄</button>
+        <button class="topbar-btn" id="btn-theme" title="切换主题">🌙</button>
       </div>
-      <div class="card">
-        <div class="card-header">
-          <span class="card-title">📊 Token 用量</span>
-        </div>
-        <div id="token-trend"></div>
-      </div>
-    </div>
-    <div class="card" style="margin-bottom:24px">
-      <div class="card-header">
-        <span class="card-title">🤖 模型分布</span>
-      </div>
-      <div id="model-chart"></div>
-    </div>
+    </header>
 
-    <!-- 会话列表 -->
-    <div class="card">
-      <div class="session-list-header">
-        <span class="card-title">📋 历史会话</span>
-        <span class="session-count" id="session-count"></span>
-      </div>
-      <div class="filter-bar" id="filter-bar">
-        <span class="filter-chip active" data-filter="all">全部</span>
-        <span class="filter-chip" data-filter="微信">🟢 微信</span>
-        <span class="filter-chip" data-filter="Telegram">🔵 Telegram</span>
-        <span class="filter-chip" data-filter="终端">🟣 终端</span>
-        <span class="filter-chip" data-filter="模型测试">🟠 测试</span>
-      </div>
-      <div id="session-list"></div>
-    </div>
+    <!-- 页面容器 -->
+    <div class="page-container">
 
-    <!-- 会话详情弹层 -->
-    <div class="modal-overlay" id="modal-overlay">
-      <div class="modal">
-        <div class="modal-header">
-          <h3 id="modal-title">会话详情</h3>
-          <button class="modal-close" id="modal-close">✕ 关闭</button>
+      <!-- ===== 总览 ===== -->
+      <section class="page active" id="page-dashboard">
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-icon">💬</div><div class="stat-val" id="s-sessions">-</div><div class="stat-lbl">会话</div><div class="stat-sub" id="s-sessions-sub"></div></div>
+          <div class="stat-card"><div class="stat-icon">📨</div><div class="stat-val" id="s-msgs">-</div><div class="stat-lbl">消息</div><div class="stat-sub" id="s-msgs-sub"></div></div>
+          <div class="stat-card"><div class="stat-icon">📊</div><div class="stat-val" id="s-tokens">-</div><div class="stat-lbl">Token</div><div class="stat-sub" id="s-tokens-sub"></div></div>
+          <div class="stat-card"><div class="stat-icon">🔧</div><div class="stat-val" id="s-tools">-</div><div class="stat-lbl">工具</div><div class="stat-sub" id="s-tools-sub"></div></div>
         </div>
-        <div class="modal-body" id="modal-body"></div>
-      </div>
-    </div>
-
-    <!-- 设置弹层 -->
-    <div class="modal-overlay" id="settings-overlay">
-      <div class="modal" style="max-width:640px">
-        <div class="modal-header">
-          <h3>⚙️ 设置</h3>
-          <button class="modal-close" onclick="$('settings-overlay').classList.remove('show')">✕ 关闭</button>
-        </div>
-        <div class="modal-body">
-          <!-- 外观 -->
-          <div class="settings-section">
-            <div class="settings-title">🎨 外观</div>
-            <div class="settings-row">
-              <span>夜间模式</span>
-              <label class="toggle"><input type="checkbox" id="toggle-dark"><span class="toggle-slider"></span></label>
-            </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><span class="card-title">📡 渠道</span></div>
+            <div id="el-channels"></div>
           </div>
-
-          <!-- API 管理 -->
-          <div class="settings-section">
-            <div class="settings-title">🔌 API 管理</div>
-            <div id="api-providers"><div class="loading"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div></div></div>
+          <div class="card">
+            <div class="card-head"><span class="card-title">📊 Token 趋势</span></div>
+            <div id="el-trend"></div>
           </div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="card-title">🤖 模型分布</span><span class="card-action" onclick="showPage('compare')">对比 →</span></div>
+          <div id="el-models"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><span class="card-title">🕐 最近活动</span><span class="card-action" onclick="showPage('sessions')">全部 →</span></div>
+          <div id="el-activity"></div>
+        </div>
+      </section>
 
-          <!-- 系统信息 -->
-          <div class="settings-section">
-            <div class="settings-title">💻 系统信息</div>
-            <div class="info-grid" id="sys-info"></div>
+      <!-- ===== 会话 ===== -->
+      <section class="page" id="page-sessions">
+        <div class="toolbar">
+          <div class="filter-bar" id="filter-bar">
+            <span class="chip active" data-f="all">全部</span>
+            <span class="chip" data-f="fav">⭐ 收藏</span>
+            <span class="chip" data-f="微信">🟢 微信</span>
+            <span class="chip" data-f="Telegram">🔵 TG</span>
+            <span class="chip" data-f="终端">🟣 终端</span>
+            <span class="chip" data-f="模型测试">🟠 测试</span>
           </div>
+          <span class="toolbar-count" id="session-count"></span>
+        </div>
+        <div id="el-sessions"></div>
+      </section>
 
-          <!-- 关于 -->
-          <div class="settings-section">
-            <div class="settings-title">ℹ️ 关于</div>
-            <div style="font-size:13px;color:var(--text-secondary);line-height:1.8">
-              <p><strong>OpenClaw Console</strong> v1.0</p>
+      <!-- ===== 对比 ===== -->
+      <section class="page" id="page-compare">
+        <div class="card">
+          <div class="card-head"><span class="card-title">⚖️ 多模型对比</span></div>
+          <div class="compare-bar">
+            <input type="text" id="compare-input" placeholder="输入问题，同时发给多个模型...">
+            <button class="btn-primary" id="compare-go">对比</button>
+          </div>
+          <div id="compare-grid"></div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <div class="card-head"><span class="card-title">⚡ 模型性能</span></div>
+          <div id="el-perf"></div>
+        </div>
+      </section>
+
+      <!-- ===== 模板 ===== -->
+      <section class="page" id="page-templates">
+        <div class="card">
+          <div class="card-head"><span class="card-title">📋 Prompt 模板库</span><span class="card-sub">点击模板直接填入对话框</span></div>
+          <div class="tpl-grid" id="el-templates"></div>
+        </div>
+      </section>
+
+      <!-- ===== 对话 ===== -->
+      <section class="page" id="page-chat">
+        <div class="chat-wrap">
+          <div class="chat-messages" id="chat-msgs">
+            <div class="chat-empty"><span>💬</span><p>发送消息开始对话</p></div>
+          </div>
+          <div class="chat-bar">
+            <button class="chat-tpl-btn" id="chat-tpl" title="模板">📋</button>
+            <textarea id="chat-input" placeholder="输入消息..." rows="1"></textarea>
+            <button class="btn-primary" id="chat-send">发送</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 设置 ===== -->
+      <section class="page" id="page-settings">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-head"><span class="card-title">🎨 外观</span></div>
+            <div class="setting-row"><span>夜间模式</span><label class="toggle"><input type="checkbox" id="toggle-dark"><span class="slider"></span></label></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-title">💰 Token 预算</span></div>
+            <div id="el-budget"></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <div class="card-head"><span class="card-title">🔌 API 管理</span></div>
+          <div id="el-api"></div>
+        </div>
+        <div class="grid-2" style="margin-top:16px">
+          <div class="card">
+            <div class="card-head"><span class="card-title">💻 系统</span></div>
+            <div id="el-sys"></div>
+          </div>
+          <div class="card">
+            <div class="card-head"><span class="card-title">ℹ️ 关于</span></div>
+            <div style="font-size:13px;color:var(--muted);line-height:1.8">
+              <p><strong>OpenClaw Console</strong> v2.0</p>
               <p>本地 AI 助手控制面板</p>
-              <p style="margin-top:8px">数据来源：OpenClaw Gateway + Claude Code</p>
-              <p>实时同步 · 风险检测 · 多渠道管理</p>
+              <p style="margin-top:6px;font-size:11px">数据来源：OpenClaw + Claude Code<br>实时同步 · 风险检测 · 多渠道 · PWA</p>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </section>
 
-    <!-- 对话 -->
-    <div class="card" style="margin-top:24px">
-      <div class="card-header">
-        <span class="card-title">🤖 实时对话</span>
-        <span style="font-size:11px;color:var(--text-tertiary)">连接 OpenClaw Gateway</span>
-      </div>
-      <div class="chat-box">
-        <div class="chat-messages" id="chat-messages">
-          <div class="chat-empty">
-            <span class="chat-empty-icon">💬</span>
-            <span>发送消息开始对话</span>
-          </div>
-        </div>
-        <div class="chat-input-area">
-          <textarea id="chat-input" placeholder="输入消息..." rows="1"></textarea>
-          <button id="chat-send" class="send-btn">发送</button>
-        </div>
-      </div>
     </div>
   </main>
 
   <!-- 搜索弹层 -->
-  <div class="modal-overlay" id="search-overlay">
-    <div class="modal" style="max-width:600px">
-      <div class="modal-header">
-        <h3>🔍 搜索对话</h3>
-        <button class="modal-close" onclick="$('search-overlay').classList.remove('show')">✕</button>
-      </div>
-      <div class="modal-body">
-        <input type="text" id="search-input" class="search-input" placeholder="输入关键词搜索所有会话...">
-        <div id="search-results" style="margin-top:16px"></div>
-      </div>
+  <div class="overlay" id="search-overlay">
+    <div class="overlay-box" style="max-width:560px">
+      <div class="overlay-head"><input type="text" id="search-input" placeholder="搜索会话内容..." autofocus><button class="overlay-close" onclick="closeOverlay('search-overlay')">✕</button></div>
+      <div class="overlay-body" id="search-results"></div>
     </div>
   </div>
 
-  <!-- 模型切换弹层 -->
-  <div class="modal-overlay" id="model-overlay">
-    <div class="modal" style="max-width:400px">
-      <div class="modal-header">
-        <h3>🤖 切换模型</h3>
-        <button class="modal-close" onclick="$('model-overlay').classList.remove('show')">✕</button>
-      </div>
-      <div class="modal-body" id="model-list"></div>
+  <!-- 会话详情弹层 -->
+  <div class="overlay" id="detail-overlay">
+    <div class="overlay-box" style="max-width:800px">
+      <div class="overlay-head"><h3 id="detail-title">会话详情</h3><div><button class="btn-sm" onclick="exportCurrent('md')">MD</button> <button class="btn-sm" onclick="exportCurrent('json')">JSON</button> <button class="overlay-close" onclick="closeOverlay('detail-overlay')">✕</button></div></div>
+      <div class="overlay-body" id="detail-body"></div>
     </div>
   </div>
 
-  <!-- Prompt 模板弹层 -->
-  <div class="modal-overlay" id="template-overlay">
-    <div class="modal" style="max-width:600px">
-      <div class="modal-header">
-        <h3>📋 Prompt 模板</h3>
-        <button class="modal-close" onclick="$('template-overlay').classList.remove('show')">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="template-grid" id="template-grid"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 多模型对比弹层 -->
-  <div class="modal-overlay" id="compare-overlay">
-    <div class="modal" style="max-width:900px">
-      <div class="modal-header">
-        <h3>⚖️ 多模型对比</h3>
-        <button class="modal-close" onclick="$('compare-overlay').classList.remove('show')">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="compare-input">
-          <input type="text" id="compare-prompt" placeholder="输入问题，同时发给多个模型对比...">
-          <button class="header-btn" id="compare-run">对比</button>
-        </div>
-        <div class="compare-grid" id="compare-results"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Token 预算 & 用量增强 -->
-  <div class="modal-overlay" id="budget-overlay">
-    <div class="modal" style="max-width:500px">
-      <div class="modal-header">
-        <h3>💰 Token 预算</h3>
-        <button class="modal-close" onclick="$('budget-overlay').classList.remove('show')">✕</button>
-      </div>
-      <div class="modal-body" id="budget-body"></div>
-    </div>
-  </div>
-
-  <!-- 性能对比 -->
-  <div class="modal-overlay" id="perf-overlay">
-    <div class="modal" style="max-width:700px">
-      <div class="modal-header">
-        <h3>⚡ 模型性能</h3>
-        <button class="modal-close" onclick="$('perf-overlay').classList.remove('show')">✕</button>
-      </div>
-      <div class="modal-body" id="perf-body"></div>
-    </div>
-  </div>
-
-  <!-- PWA 安装提示 -->
-  <div class="pwa-install" id="pwa-install" onclick="installPWA()">📱 安装到手机</div>
+  <!-- PWA -->
+  <div class="pwa-banner" id="pwa-banner" onclick="doPwaInstall()">📱 安装到主屏幕</div>
 
   <script src="app.js"></script>
   <script>
-    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(()=>{}); }
-    let deferredPrompt;
-    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; document.getElementById('pwa-install').style.display = 'block'; });
-    function installPWA() { if (deferredPrompt) { deferredPrompt.prompt(); deferredPrompt.userChoice.then(() => { document.getElementById('pwa-install').style.display = 'none'; }); } }
+    if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+    let _pwa; window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); _pwa=e; document.getElementById('pwa-banner').style.display='block'; });
+    function doPwaInstall() { if(_pwa) _pwa.prompt(); }
   </script>
 </body>
 </html>
