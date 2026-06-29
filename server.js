@@ -3,11 +3,12 @@ const fs = require('fs');
 const path = require('path');
 const { readFile, readdir } = require('fs/promises');
 
+const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN || '';
 const PORT = 3456;
 const HOME = process.env.HOME;
 const OC_SESSIONS = path.join(HOME, '.openclaw/agents/main/sessions');
 const OC_INDEX = path.join(OC_SESSIONS, 'sessions.json');
-const CC_PROJECTS = path.join(HOME, '.claude/projects/-Users-xiamuguizhi');
+const CC_PROJECTS = path.join(HOME, '.claude/projects');
 const CC_HISTORY = path.join(HOME, '.claude/history.jsonl');
 const OC_CONFIG = path.join(HOME, '.openclaw/openclaw.json');
 
@@ -58,29 +59,35 @@ async function scanOpenClawSessions() {
 // === Claude Code 会话 ===
 async function scanClaudeSessions() {
   if (!fs.existsSync(CC_PROJECTS)) return [];
-  const files = (await readdir(CC_PROJECTS)).filter(f=>f.endsWith('.jsonl')&&!f.includes('subagent'));
+  const subdirs = (await readdir(CC_PROJECTS)).filter(d => {
+    try { return fs.statSync(path.join(CC_PROJECTS, d)).isDirectory(); } catch { return false; }
+  });
   const sessions = [];
-  for (const file of files) {
-    const sid = file.replace('.jsonl','');
-    const fp = path.join(CC_PROJECTS,file);
-    const lines = await parseJsonl(fp);
-    const humanMsgs = lines.filter(l=>l.type==='user');
-    const asstMsgs = lines.filter(l=>l.type==='assistant');
-    if (!humanMsgs.length) continue;
+  for (const dir of subdirs) {
+    const dirPath = path.join(CC_PROJECTS, dir);
+    const files = (await readdir(dirPath)).filter(f=>f.endsWith('.jsonl')&&!f.includes('subagent'));
+    for (const file of files) {
+      const sid = file.replace('.jsonl','');
+      const fp = path.join(dirPath,file);
+      const lines = await parseJsonl(fp);
+      const humanMsgs = lines.filter(l=>l.type==='user');
+      const asstMsgs = lines.filter(l=>l.type==='assistant');
+      if (!humanMsgs.length) continue;
 
-    let ti=0,to=0,tc=0;
-    for (const m of asstMsgs) {
-      const u=m.message?.usage||{};
-      ti+=u.input_tokens||0; to+=u.output_tokens||0; tc+=u.cache_read_input_tokens||0;
+      let ti=0,to=0,tc=0;
+      for (const m of asstMsgs) {
+        const u=m.message?.usage||{};
+        ti+=u.input_tokens||0; to+=u.output_tokens||0; tc+=u.cache_read_input_tokens||0;
+      }
+      const first=humanMsgs[0];
+      const fc=first.message?.content;
+      const summary=typeof fc==='string'?fc.slice(0,80):Array.isArray(fc)?(fc.find(x=>x.type==='text')?.text||'').slice(0,80):'';
+      const firstTs=first.timestamp||first.message?.timestamp;
+      const lastTs=asstMsgs.length?asstMsgs[asstMsgs.length-1].timestamp||firstTs:firstTs;
+      const model=asstMsgs[asstMsgs.length-1]?.message?.model||'unknown';
+
+      sessions.push({sessionId:sid,source:'claude-code',channel:'终端',summary:summary||'(无文本)',startedAt:firstTs,lastInteractionAt:lastTs,model,provider:'anthropic',tokenUsage:{input:ti,output:to,cache:tc,total:ti+to},messageCount:humanMsgs.length+asstMsgs.length,toolCallCount:0,toolCalls:[],risks:[]});
     }
-    const first=humanMsgs[0];
-    const fc=first.message?.content;
-    const summary=typeof fc==='string'?fc.slice(0,80):Array.isArray(fc)?(fc.find(x=>x.type==='text')?.text||'').slice(0,80):'';
-    const firstTs=first.timestamp||first.message?.timestamp;
-    const lastTs=asstMsgs.length?asstMsgs[asstMsgs.length-1].timestamp||firstTs:firstTs;
-    const model=asstMsgs[asstMsgs.length-1]?.message?.model||'unknown';
-
-    sessions.push({sessionId:sid,source:'claude-code',channel:'终端',summary:summary||'(无文本)',startedAt:firstTs,lastInteractionAt:lastTs,model,provider:'anthropic',tokenUsage:{input:ti,output:to,cache:tc,total:ti+to},messageCount:humanMsgs.length+asstMsgs.length,toolCallCount:0,toolCalls:[],risks:[]});
   }
   return sessions;
 }
@@ -99,9 +106,17 @@ async function getAllSessions() {
 
 // 会话详情（通过 sessionId 查找文件，不暴露路径）
 async function getSessionDetail(sid) {
-  // 查找文件
+  // 查找文件：先在 OpenClaw 会话目录，再遍历 Claude Code 子目录
   let fp = path.join(OC_SESSIONS, sid+'.jsonl');
-  if (!fs.existsSync(fp)) fp = path.join(CC_PROJECTS, sid+'.jsonl');
+  if (!fs.existsSync(fp) && fs.existsSync(CC_PROJECTS)) {
+    const subdirs = (await readdir(CC_PROJECTS)).filter(d => {
+      try { return fs.statSync(path.join(CC_PROJECTS, d)).isDirectory(); } catch { return false; }
+    });
+    for (const dir of subdirs) {
+      const candidate = path.join(CC_PROJECTS, dir, sid+'.jsonl');
+      if (fs.existsSync(candidate)) { fp = candidate; break; }
+    }
+  }
   if (!fs.existsSync(fp)) return null;
 
   // 判断来源
@@ -152,7 +167,15 @@ const sseClients=new Set();
 function broadcastSSE(data) { const msg=`data: ${JSON.stringify(data)}\n\n`; for (const c of sseClients) c.write(msg); }
 function watchSessions() {
   if (fs.existsSync(OC_SESSIONS)) fs.watch(OC_SESSIONS,{persistent:false},()=>broadcastSSE({type:'refresh'}));
-  if (fs.existsSync(CC_PROJECTS)) fs.watch(CC_PROJECTS,{persistent:false},()=>broadcastSSE({type:'refresh'}));
+  if (fs.existsSync(CC_PROJECTS)) {
+    fs.watch(CC_PROJECTS,{persistent:false},()=>broadcastSSE({type:'refresh'}));
+    const subdirs = fs.readdirSync(CC_PROJECTS).filter(d => {
+      try { return fs.statSync(path.join(CC_PROJECTS, d)).isDirectory(); } catch { return false; }
+    });
+    for (const dir of subdirs) {
+      try { fs.watch(path.join(CC_PROJECTS, dir),{persistent:false},()=>broadcastSSE({type:'refresh'})); } catch {}
+    }
+  }
 }
 
 // === HTTP ===
@@ -172,7 +195,7 @@ const server=http.createServer(async(req,res)=>{
       try {
         const gwRes = await fetch('http://127.0.0.1:18789/api/v1/agent',{
           method:'POST',
-          headers:{'Content-Type':'application/json','Authorization':'Bearer REMOVED_TOKEN'},
+          headers:{'Content-Type':'application/json','Authorization':`Bearer ${OPENCLAW_TOKEN}`},
           body
         });
         const data = await gwRes.json();
@@ -187,6 +210,7 @@ const server=http.createServer(async(req,res)=>{
 
   let fp=url.pathname==='/'?'/index.html':url.pathname;
   fp=path.join(__dirname,'public',fp);
+  if (!fp.startsWith(path.join(__dirname, 'public'))) { res.writeHead(403); res.end('Forbidden'); return; }
   if (fs.existsSync(fp)&&fs.statSync(fp).isFile()) { res.writeHead(200,{'Content-Type':MIME[path.extname(fp)]||'application/octet-stream'}); fs.createReadStream(fp).pipe(res); }
   else { res.writeHead(404); res.end('Not found'); }
 });
