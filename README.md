@@ -4,7 +4,7 @@
 
 **本地 AI 助手控制面板 — 为 [OpenClaw](https://github.com/openclaw/openclaw) 而生**
 
-[![Version](https://img.shields.io/badge/version-v2.0-blue?style=flat-square)](https://github.com/xmgzxmgz/openclaw-console/releases)
+[![Version](https://img.shields.io/badge/version-v2.1-blue?style=flat-square)](https://github.com/xmgzxmgz/openclaw-console/releases)
 [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20Mobile-lightgrey?style=flat-square)](#平台支持)
 [![Node](https://img.shields.io/badge/node.js-%3E%3D18-brightgreen?style=flat-square)](https://nodejs.org/)
