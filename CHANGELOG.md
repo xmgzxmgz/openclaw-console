@@ -1,5 +1,14 @@
 # 📋 更新日志
 
+## v2.1 (2026-07-01)
+
+### 🐛 修复
+- **Token 计费准确性修复**：`total` 现在包含 cache tokens（cacheRead/cacheWrite/cacheCreation），此前 total 只计算 input+output，遗漏了约 95% 的实际 token 消耗
+- OpenClaw 会话新增 `cacheWrite` 追踪
+- Claude Code 会话新增 `cache_creation_input_tokens` 追踪
+- 会话详情页展示 Cache Read / Cache Write 分类统计
+- 消息级别 usage 展示 cache token 数
+
 ## v2.0 (2026-06-30)
 
 ### ✨ 新功能

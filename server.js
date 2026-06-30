@@ -36,9 +36,9 @@ async function scanOpenClawSessions() {
     const meta = metaBySid[sid]||{};
     const first = msgs.find(m=>m.message?.role==='user');
     const last = msgs.filter(m=>m.message?.role==='assistant').pop();
-    let ti=0,to=0,tc=0; const tnames=[];
+    let ti=0,to=0,tc=0,tw=0; const tnames=[];
     for (const m of msgs) {
-      if (m.message?.usage) { ti+=m.message.usage.input||0; to+=m.message.usage.output||0; tc+=m.message.usage.cacheRead||0; }
+      if (m.message?.usage) { ti+=m.message.usage.input||0; to+=m.message.usage.output||0; tc+=m.message.usage.cacheRead||0; tw+=m.message.usage.cacheWrite||0; }
       if (Array.isArray(m.message?.content)) for (const c of m.message.content) if (c.type==='toolCall') { tnames.push(c.name); }
     }
     const risks=[];
@@ -51,7 +51,7 @@ async function scanOpenClawSessions() {
     const ch=key.includes('openclaw-weixin')?'微信':key.includes('telegram')?'Telegram':key.includes('main:main')?'终端':sid.startsWith('model-run-')?'模型测试':'其他';
     const fc=first?.message?.content;
     const summary=typeof fc==='string'?fc.slice(0,80):Array.isArray(fc)?(fc.find(x=>x.type==='text')?.text||'').slice(0,80):'';
-    sessions.push({sessionId:sid,source:'openclaw',channel:ch,summary:summary||'(无文本)',startedAt:meta.sessionStartedAt||null,lastInteractionAt:meta.lastInteractionAt||null,model:last?.message?.model||'unknown',provider:last?.message?.provider||'unknown',tokenUsage:{input:ti,output:to,cache:tc,total:ti+to},messageCount:msgs.length,toolCallCount:tnames.length,toolCalls:[...new Set(tnames)],risks});
+    sessions.push({sessionId:sid,source:'openclaw',channel:ch,summary:summary||'(无文本)',startedAt:meta.sessionStartedAt||null,lastInteractionAt:meta.lastInteractionAt||null,model:last?.message?.model||'unknown',provider:last?.message?.provider||'unknown',tokenUsage:{input:ti,output:to,cacheRead:tc,cacheWrite:tw,total:ti+to+tc+tw},messageCount:msgs.length,toolCallCount:tnames.length,toolCalls:[...new Set(tnames)],risks});
   }
   return sessions;
 }
@@ -74,10 +74,10 @@ async function scanClaudeSessions() {
       const asstMsgs = lines.filter(l=>l.type==='assistant');
       if (!humanMsgs.length) continue;
 
-      let ti=0,to=0,tc=0;
+      let ti=0,to=0,tc=0,tcc=0;
       for (const m of asstMsgs) {
         const u=m.message?.usage||{};
-        ti+=u.input_tokens||0; to+=u.output_tokens||0; tc+=u.cache_read_input_tokens||0;
+        ti+=u.input_tokens||0; to+=u.output_tokens||0; tc+=u.cache_read_input_tokens||0; tcc+=u.cache_creation_input_tokens||0;
       }
       const first=humanMsgs[0];
       const fc=first.message?.content;
@@ -86,7 +86,7 @@ async function scanClaudeSessions() {
       const lastTs=asstMsgs.length?asstMsgs[asstMsgs.length-1].timestamp||firstTs:firstTs;
       const model=asstMsgs[asstMsgs.length-1]?.message?.model||'unknown';
 
-      sessions.push({sessionId:sid,source:'claude-code',channel:'终端',summary:summary||'(无文本)',startedAt:firstTs,lastInteractionAt:lastTs,model,provider:'anthropic',tokenUsage:{input:ti,output:to,cache:tc,total:ti+to},messageCount:humanMsgs.length+asstMsgs.length,toolCallCount:0,toolCalls:[],risks:[]});
+      sessions.push({sessionId:sid,source:'claude-code',channel:'终端',summary:summary||'(无文本)',startedAt:firstTs,lastInteractionAt:lastTs,model,provider:'anthropic',tokenUsage:{input:ti,output:to,cacheRead:tc,cacheCreation:tcc,total:ti+to+tc+tcc},messageCount:humanMsgs.length+asstMsgs.length,toolCallCount:0,toolCalls:[],risks:[]});
     }
   }
   return sessions;
@@ -133,7 +133,7 @@ async function getSessionDetail(sid) {
         conv.push({role:'user',timestamp:l.timestamp,text:typeof c==='string'?c:Array.isArray(c)?c.filter(x=>x.type==='text').map(x=>x.text).join('\n'):''});
       } else if (l.type==='assistant') {
         const parts=Array.isArray(l.message?.content)?l.message.content:[];
-        conv.push({role:'assistant',timestamp:l.timestamp,text:parts.filter(c=>c.type==='text').map(c=>c.text).join('\n'),toolCalls:parts.filter(c=>c.type==='tool_use').map(c=>({name:c.name,arguments:c.input})),usage:l.message?.usage?{input:l.message.usage.input_tokens,output:l.message.usage.output_tokens,cache:l.message.usage.cache_read_input_tokens,totalTokens:(l.message.usage.input_tokens||0)+(l.message.usage.output_tokens||0)}:null});
+        conv.push({role:'assistant',timestamp:l.timestamp,text:parts.filter(c=>c.type==='text').map(c=>c.text).join('\n'),toolCalls:parts.filter(c=>c.type==='tool_use').map(c=>({name:c.name,arguments:c.input})),usage:l.message?.usage?{input:l.message.usage.input_tokens,output:l.message.usage.output_tokens,cacheRead:l.message.usage.cache_read_input_tokens,cacheCreation:l.message.usage.cache_creation_input_tokens,totalTokens:(l.message.usage.input_tokens||0)+(l.message.usage.output_tokens||0)+(l.message.usage.cache_read_input_tokens||0)+(l.message.usage.cache_creation_input_tokens||0)}:null});
       } else if (l.type==='tool_result') {
         conv.push({role:'tool',timestamp:l.timestamp,toolName:l.tool_use_id||'',isError:l.is_error||false,result:typeof l.content==='string'?l.content.slice(0,500):Array.isArray(l.content)?l.content.map(x=>x.text||'').join('\n').slice(0,500):''});
       }
