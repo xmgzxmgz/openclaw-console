@@ -303,7 +303,7 @@ npx nodemon server.js
 
 **xmgz**
 
-- 📧 Email: [xmgzdm@gmail.com](mailto:xmgzdm@gmail.com)
+- 📧 Email: 通过 GitHub Issues 联系
 - 🐙 GitHub: [@xmgzxmgz](https://github.com/xmgzxmgz)
 - 📦 项目: [openclaw-console](https://github.com/xmgzxmgz/openclaw-console)
 
