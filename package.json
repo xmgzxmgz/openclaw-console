@@ -1,0 +1,17 @@
+{
+  "name": "openclaw-console",
+  "version": "2.2.0",
+  "description": "OpenClaw AI 助手本地控制面板 — 会话管理、风险检测、多模型对比",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test tests/"
+  },
+  "keywords": ["openclaw", "ai", "console", "dashboard", "claude"],
+  "author": "xmgz",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

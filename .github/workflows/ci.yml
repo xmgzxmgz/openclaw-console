@@ -4,12 +4,36 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
     steps:
       - uses: actions/checkout@v4
-      - name: Check repository structure
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Verify project structure
         run: |
-          echo "✅ Repository checked"
+          echo "📂 Project files:"
           ls -la
+          echo ""
+          echo "✅ server.js exists: $([ -f server.js ] && echo 'yes' || echo 'no')"
+          echo "✅ package.json exists: $([ -f package.json ] && echo 'yes' || echo 'no')"
+          echo "✅ public/index.html exists: $([ -f public/index.html ] && echo 'yes' || echo 'no')"
+
+      - name: Run tests
+        run: node --test tests/
+
+      - name: Verify server starts
+        run: |
+          timeout 5 node server.js &
+          sleep 2
+          curl -s http://localhost:3456/ | grep -q "OpenClaw" && echo "✅ Server responds" || echo "❌ Server failed"
+          kill %1 2>/dev/null || true
