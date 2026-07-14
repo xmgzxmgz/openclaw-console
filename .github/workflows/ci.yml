@@ -29,7 +29,7 @@ jobs:
           echo "✅ public/index.html exists: $([ -f public/index.html ] && echo 'yes' || echo 'no')"
 
       - name: Run tests
-        run: node --test tests/
+        run: node --test tests/test.js
 
       - name: Verify server starts
         run: |
